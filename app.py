@@ -114,21 +114,21 @@ def main():
                             "title": title,
                             "description": description
                         }
-                        result = make_request("POST", ENDPOINTS["exams"], headers=headers, data=data)
+                        result = make_request("POST", ENDPOINTS["examenes"], headers=headers, data=data)
                         if result:
                             st.success("Examen creado exitosamente!")
                             st.experimental_rerun()
             
             # Listar y gestionar exámenes
-            exams = make_request("GET", ENDPOINTS["exams"], headers=headers)
-            if exams:
-                df = pd.DataFrame(exams)
+            examenes = make_request("GET", ENDPOINTS["examenes"], headers=headers)
+            if examenes:
+                df = pd.DataFrame(examenes)
                 st.dataframe(df, use_container_width=True)
                 
                 # Acciones para exámenes específicos
                 exam_id = st.selectbox("Seleccionar Examen", df["id"])
                 if exam_id:
-                    selected_exam = next((e for e in exams if e["id"] == exam_id), None)
+                    selected_exam = next((e for e in examenes if e["id"] == exam_id), None)
                     if selected_exam:
                         # Editar examen
                         with st.expander("✏️ Editar Examen"):
@@ -140,7 +140,7 @@ def main():
                                         "title": title,
                                         "description": description
                                     }
-                                    result = make_request("PUT", f"{ENDPOINTS['exams']}/{exam_id}", headers=headers, data=data)
+                                    result = make_request("PUT", f"{ENDPOINTS['examenes']}/{exam_id}", headers=headers, data=data)
                                     if result:
                                         st.success("Examen actualizado exitosamente!")
                                         st.experimental_rerun()
@@ -161,7 +161,7 @@ def main():
                                             "text": question_text,
                                             "correct_option": correct_option
                                         }
-                                        result = make_request("POST", f"{ENDPOINTS['exams']}/{exam_id}/questions", headers=headers, data=data)
+                                        result = make_request("POST", f"{ENDPOINTS['examenes']}/{exam_id}/preguntas", headers=headers, data=data)
                                         if result:
                                             st.success("Pregunta creada exitosamente!")
                                             st.experimental_rerun()
@@ -179,7 +179,7 @@ def main():
                                                     "text": question_text,
                                                     "correct_option": correct_option
                                                 }
-                                                result = make_request("PUT", f"{ENDPOINTS['questions']}/{question_id}", headers=headers, data=data)
+                                                result = make_request("PUT", f"{ENDPOINTS['preguntas']}/{question_id}", headers=headers, data=data)
                                                 if result:
                                                     st.success("Pregunta actualizada exitosamente!")
                                                     st.experimental_rerun()
@@ -187,7 +187,7 @@ def main():
                                 # Eliminar pregunta
                                 if st.button("🗑️ Eliminar Pregunta"):
                                     if st.confirm("¿Estás seguro de eliminar esta pregunta?"):
-                                        result = make_request("DELETE", f"{ENDPOINTS['questions']}/{question_id}", headers=headers)
+                                        result = make_request("DELETE", f"{ENDPOINTS['preguntas']}/{question_id}", headers=headers)
                                         if result:
                                             st.success("Pregunta eliminada exitosamente!")
                                             st.experimental_rerun()
@@ -195,7 +195,7 @@ def main():
                         # Eliminar examen
                         if st.button("🗑️ Eliminar Examen"):
                             if st.confirm("¿Estás seguro de eliminar este examen?"):
-                                result = make_request("DELETE", f"{ENDPOINTS['exams']}/{exam_id}", headers=headers)
+                                result = make_request("DELETE", f"{ENDPOINTS['examenes']}/{exam_id}", headers=headers)
                                 if result:
                                     st.success("Examen eliminado exitosamente!")
                                     st.experimental_rerun()
@@ -207,9 +207,9 @@ def main():
             st.subheader("Realizar Exámenes")
             
             # Listar exámenes disponibles
-            exams = make_request("GET", ENDPOINTS["exams"], headers=headers)
-            if exams:
-                df = pd.DataFrame(exams)
+            examenes = make_request("GET", ENDPOINTS["examenes"], headers=headers)
+            if examenes:
+                df = pd.DataFrame(examenes)
                 st.dataframe(df, use_container_width=True)
                 
                 # Seleccionar examen para realizar
@@ -217,15 +217,15 @@ def main():
                 if exam_id:
                     with st.form("take_exam"):
                         # Obtener preguntas del examen
-                        questions = make_request("GET", f"{ENDPOINTS['exams']}/{exam_id}/questions", headers=headers)
-                        if questions:
+                        preguntas = make_request("GET", f"{ENDPOINTS['exaexamenesms']}/{exam_id}/preguntas", headers=headers)
+                        if preguntas:
                             answers = {}
-                            for q in questions:
+                            for q in preguntas:
                                 st.subheader(f"Pregunta {q['id']}: {q['text']}")
                                 answers[q['id']] = st.selectbox(f"Respuesta para pregunta {q['id']}", ["A", "B", "C", "D"])
                             
                             if st.form_submit_button("Enviar Examen"):
-                                result = make_request("POST", f"{ENDPOINTS['exams']}/{exam_id}/submit", headers=headers, data={"answers": answers})
+                                result = make_request("POST", f"{ENDPOINTS['examenes']}/{exam_id}/submit", headers=headers, data={"answers": answers})
                                 if result:
                                     st.success("Examen enviado exitosamente!")
                                     st.info(f"Calificación: {result['score']} / {len(questions)}")
@@ -238,8 +238,8 @@ def main():
         
         # Filtrar resultados
         with st.expander("🔍 Filtrar Resultados"):
-            exam_filter = st.selectbox("Filtrar por Examen", ["Todos"] + [e["title"] for e in make_request("GET", ENDPOINTS["exams"], headers=headers) or []])
-            user_filter = st.selectbox("Filtrar por Usuario", ["Todos"] + [u["username"] for u in make_request("GET", ENDPOINTS["users"], headers=headers) or []])
+            exam_filter = st.selectbox("Filtrar por Examen", ["Todos"] + [e["title"] for e in make_request("GET", ENDPOINTS["examenes"], headers=headers) or []])
+            user_filter = st.selectbox("Filtrar por Usuario", ["Todos"] + [u["username"] for u in make_request("GET", ENDPOINTS["api/admin/users"], headers=headers) or []])
         
         # Listar resultados
         params = {}
@@ -248,7 +248,7 @@ def main():
         if user_filter != "Todos":
             params["user"] = user_filter
         
-        results = make_request("GET", ENDPOINTS["results"], headers=headers, params=params)
+        results = make_request("GET", ENDPOINTS["resultados"], headers=headers, params=params)
         if results:
             df = pd.DataFrame(results)
             st.dataframe(df, use_container_width=True)
@@ -287,13 +287,13 @@ def main():
                         "email": email,
                         "role": role
                     }
-                    result = make_request("POST", ENDPOINTS["users"], headers=headers, data=data)
+                    result = make_request("POST", ENDPOINTS["api/admin/users"], headers=headers, data=data)
                     if result:
                         st.success("Usuario creado exitosamente!")
                         st.experimental_rerun()
         
         # Listar y gestionar usuarios
-        users = make_request("GET", ENDPOINTS["users"], headers=headers)
+        users = make_request("GET", ENDPOINTS["api/admin/users"], headers=headers)
         if users:
             df = pd.DataFrame(users)
             st.dataframe(df, use_container_width=True)
@@ -314,7 +314,7 @@ def main():
                                     "email": email,
                                     "role": role
                                 }
-                                result = make_request("PUT", f"{ENDPOINTS['users']}/{user_id}", headers=headers, data=data)
+                                result = make_request("PUT", f"{ENDPOINTS['api/admin/users']}/{user_id}", headers=headers, data=data)
                                 if result:
                                     st.success("Usuario actualizado exitosamente!")
                                     st.experimental_rerun()
