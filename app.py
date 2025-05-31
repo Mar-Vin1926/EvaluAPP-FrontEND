@@ -33,12 +33,12 @@ def select_role():
             role = st.selectbox("Selecciona tu rol", ["admin", "teacher", "student"])
             if st.form_submit_button("Continuar"):
                 st.session_state.role = role
-                st.experimental_rerun()
+                st.rerun()
     else:
         st.sidebar.success(f"Rol seleccionado: {st.session_state.role}")
         if st.sidebar.button("Cambiar Rol"):
             del st.session_state.role
-            st.experimental_rerun()
+            st.rerun()
         role = st.session_state.role
     
     return role
@@ -117,7 +117,7 @@ def main():
                         result = make_request("POST", ENDPOINTS["examenes"], headers=headers, data=data)
                         if result:
                             st.success("Examen creado exitosamente!")
-                            st.experimental_rerun()
+                            st.rerun()
             
             # Listar y gestionar exámenes
             examenes = make_request("GET", ENDPOINTS["examenes"], headers=headers)
@@ -143,7 +143,7 @@ def main():
                                     result = make_request("PUT", f"{ENDPOINTS['examenes']}/{exam_id}", headers=headers, data=data)
                                     if result:
                                         st.success("Examen actualizado exitosamente!")
-                                        st.experimental_rerun()
+                                        st.rerun()
                         
                         # Gestión de preguntas y opciones
                         with st.expander("📝 Gestión de Preguntas"):
@@ -164,7 +164,7 @@ def main():
                                         result = make_request("POST", f"{ENDPOINTS['examenes']}/{exam_id}/preguntas", headers=headers, data=data)
                                         if result:
                                             st.success("Pregunta creada exitosamente!")
-                                            st.experimental_rerun()
+                                            st.rerun()
                                 
                                 # Editar pregunta
                                 question_id = st.selectbox("Seleccionar Pregunta", [q["id"] for q in questions])
@@ -182,7 +182,7 @@ def main():
                                                 result = make_request("PUT", f"{ENDPOINTS['preguntas']}/{question_id}", headers=headers, data=data)
                                                 if result:
                                                     st.success("Pregunta actualizada exitosamente!")
-                                                    st.experimental_rerun()
+                                                    st.rerun()
                                 
                                 # Eliminar pregunta
                                 if st.button("🗑️ Eliminar Pregunta"):
@@ -190,7 +190,7 @@ def main():
                                         result = make_request("DELETE", f"{ENDPOINTS['preguntas']}/{question_id}", headers=headers)
                                         if result:
                                             st.success("Pregunta eliminada exitosamente!")
-                                            st.experimental_rerun()
+                                            st.rerun()
                         
                         # Eliminar examen
                         if st.button("🗑️ Eliminar Examen"):
@@ -198,7 +198,7 @@ def main():
                                 result = make_request("DELETE", f"{ENDPOINTS['examenes']}/{exam_id}", headers=headers)
                                 if result:
                                     st.success("Examen eliminado exitosamente!")
-                                    st.experimental_rerun()
+                                    st.rerun()
             else:
                 st.info("No hay exámenes disponibles")
         
@@ -229,7 +229,7 @@ def main():
                                 if result:
                                     st.success("Examen enviado exitosamente!")
                                     st.info(f"Calificación: {result['score']} / {len(questions)}")
-                                    st.experimental_rerun()
+                                    st.rerun()
             else:
                 st.info("No hay exámenes disponibles para realizar")
     
@@ -290,7 +290,7 @@ def main():
                     result = make_request("POST", ENDPOINTS["api/admin/users"], headers=headers, data=data)
                     if result:
                         st.success("Usuario creado exitosamente!")
-                        st.experimental_rerun()
+                        st.rerun()
         
         # Listar y gestionar usuarios
         users = make_request("GET", ENDPOINTS["api/admin/users"], headers=headers)
@@ -317,14 +317,14 @@ def main():
                                 result = make_request("PUT", f"{ENDPOINTS['api/admin/users']}/{user_id}", headers=headers, data=data)
                                 if result:
                                     st.success("Usuario actualizado exitosamente!")
-                                    st.experimental_rerun()
+                                    st.rerun()
                     
                     if st.button("🗑️ Eliminar Usuario"):
                         if st.confirm("¿Estás seguro de eliminar este usuario?"):
                             result = make_request("DELETE", f"{ENDPOINTS['users']}/{user_id}", headers=headers)
                             if result:
                                 st.success("Usuario eliminado exitosamente!")
-                                st.experimental_rerun()
+                                st.rerun()
         else:
             st.info("No hay usuarios registrados")
     

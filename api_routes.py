@@ -6,6 +6,7 @@ ENDPOINTS = {
     "auth": "auth/login",
     "stats": "stats",
     "exams": "exams",
+    "examenes": "exams",
     "questions": "questions",
     "options": "options",
     "results": "results",
