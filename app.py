@@ -217,18 +217,18 @@ def main():
                 if exam_id:
                     with st.form("take_exam"):
                         # Obtener preguntas del examen
-                        preguntas = make_request("GET", f"{ENDPOINTS['exaexamenesms']}/{exam_id}/preguntas", headers=headers)
+                        preguntas = make_request("GET", f"{ENDPOINTS['examenes']}/{exam_id}/preguntas", headers=headers)
                         if preguntas:
                             answers = {}
                             for q in preguntas:
                                 st.subheader(f"Pregunta {q['id']}: {q['text']}")
                                 answers[q['id']] = st.selectbox(f"Respuesta para pregunta {q['id']}", ["A", "B", "C", "D"])
-                            
-                            if st.form_submit_button("Enviar Examen"):
+                            enviar = st.form_submit_button("Enviar Examen")
+                            if enviar:
                                 result = make_request("POST", f"{ENDPOINTS['examenes']}/{exam_id}/submit", headers=headers, data={"answers": answers})
                                 if result:
                                     st.success("Examen enviado exitosamente!")
-                                    st.info(f"Calificación: {result['score']} / {len(questions)}")
+                                    st.info(f"Calificación: {result['score']} / {len(preguntas)}")
                                     st.rerun()
             else:
                 st.info("No hay exámenes disponibles para realizar")
