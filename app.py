@@ -4,9 +4,7 @@ import pandas as pd
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-
-# Cargar variables de entorno
-load_dotenv()
+from api_routes import ENDPOINTS, build_url
 
 # Configuración de la página
 st.set_page_config(
@@ -15,165 +13,233 @@ st.set_page_config(
     layout="wide"
 )
 
-# URL base de la API en Render
-API_BASE_URL = os.getenv("API_URL", "https://evaluapp.onrender.com/api")
+# Cargar variables de entorno
+load_dotenv()
 
-# Función para hacer peticiones a la API
-def fetch_data(endpoint):
-    try:
-        response = requests.get(f"{API_BASE_URL}/{endpoint}")
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error al conectar con la API: {e}")
-        return None
+# Definir roles y sus respectivos headers
+ROLES = {
+    "admin": "ADMIN",
+    "teacher": "TEACHER",
+    "student": "STUDENT"
+}
 
-# Función para autenticación
-def login(username, password):
-    try:
-        data = {
-            "username": username,
-            "password": password
-        }
-        result = make_request("POST", "auth/login", data=data)
-        if result:
-            return result["token"]
-        else:
-            st.error("Usuario o contraseña incorrectos")
-            return None
-    except Exception as e:
-        st.error(f"Error al iniciar sesión: {e}")
-        return None
-
-# Barra lateral para autenticación
-def sidebar_auth():
-    st.sidebar.title("🔐 Autenticación")
-    token = None
+# Función para seleccionar rol
+def select_role():
+    st.sidebar.title("👤 Selecciona tu Rol")
+    role = None
     
-    if 'token' not in st.session_state:
-        with st.sidebar.form("login_form"):
-            username = st.text_input("Usuario")
-            password = st.text_input("Contraseña", type="password")
-            if st.form_submit_button("Iniciar sesión"):
-                token = login(username, password)
-                if token:
-                    st.session_state.token = token
-                    st.experimental_rerun()
+    if 'role' not in st.session_state:
+        with st.sidebar.form("role_form"):
+            role = st.selectbox("Selecciona tu rol", ["admin", "teacher", "student"])
+            if st.form_submit_button("Continuar"):
+                st.session_state.role = role
+                st.experimental_rerun()
     else:
-        st.sidebar.success("Sesión iniciada")
-        if st.sidebar.button("Cerrar sesión"):
-            del st.session_state.token
+        st.sidebar.success(f"Rol seleccionado: {st.session_state.role}")
+        if st.sidebar.button("Cambiar Rol"):
+            del st.session_state.role
             st.experimental_rerun()
-        token = st.session_state.token
+        role = st.session_state.role
     
-    return token
+    return role
+
+def get_headers():
+    """Devuelve los headers para las peticiones según el rol"""
+    if 'role' in st.session_state:
+        return {"X-Role": ROLES[st.session_state.role]}
+    return {}
 
 def make_request(method, endpoint, headers=None, data=None):
     """Función auxiliar para hacer peticiones HTTP"""
     try:
-        url = f"{API_BASE_URL}/{endpoint}"
+        # Construir URL usando el módulo de rutas
+        url = build_url(endpoint)
+        st.info(f"Haciendo petición a: {url}")
+        
+        # Mostrar detalles de la petición para debugging
+        st.info(f"Método: {method}")
+        st.info(f"Headers: {headers}")
+        st.info(f"Data: {data}")
+        
         response = requests.request(method, url, headers=headers, json=data)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"Error en la petición: {e}")
+        st.error(f"URL de la API: {url}")
         return None
 
 def main():
     st.title("📊 EvaluApp - Panel de Control")
     
-    # Verificar autenticación
-    token = sidebar_auth()
+    # Seleccionar rol
+    role = select_role()
     
-    if not token:
-        st.warning("Por favor inicia sesión para continuar")
+    if not role:
+        st.warning("Por favor selecciona tu rol para continuar")
         return
     
-    # Menú de navegación
-    menu = ["Inicio", "Exámenes", "Resultados", "Usuarios", "Configuración"]
+    # Menú de navegación según el rol
+    if role == "admin":
+        menu = ["Inicio", "Exámenes", "Resultados", "Usuarios", "Configuración"]
+    elif role == "teacher":
+        menu = ["Inicio", "Exámenes", "Resultados"]
+    else:  # student
+        menu = ["Inicio", "Exámenes", "Resultados"]
+    
     choice = st.sidebar.selectbox("Menú", menu)
     
-    headers = {"Authorization": f"Bearer {token}"}
+    # Obtener headers con el rol
+    headers = get_headers()
     
     if choice == "Inicio":
         st.header(" Bienvenido a EvaluApp")
         st.write("Selecciona una opción del menú para comenzar.")
-        
-        # Mostrar estadísticas rápidas
-        try:
-            stats = make_request("GET", "stats", headers=headers)
-            if stats:
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Total Exámenes", stats.get("total_exams", 0))
-                with col2:
-                    st.metric("Total Usuarios", stats.get("total_users", 0))
-                with col3:
-                    st.metric("Promedio Calificación", f"{stats.get('average_score', 0):.1f}")
-        except Exception as e:
-            st.error(f"Error al cargar estadísticas: {e}")
     
     elif choice == "Exámenes":
-        st.header("📝 Gestión de Exámenes")
+        st.header("📝 Exámenes")
         
-        # Crear nuevo examen
-        with st.expander("➕ Crear Nuevo Examen"):
-            with st.form("create_exam"):
-                title = st.text_input("Título del Examen")
-                description = st.text_area("Descripción")
-                questions = st.number_input("Número de Preguntas", min_value=1, value=5)
-                if st.form_submit_button("Crear Examen"):
-                    data = {
-                        "title": title,
-                        "description": description,
-                        "questions": questions
-                    }
-                    result = make_request("POST", "exams", headers=headers, data=data)
-                    if result:
-                        st.success("Examen creado exitosamente!")
-                        st.experimental_rerun()
-        
-        # Listar y gestionar exámenes
-        exams = make_request("GET", "exams", headers=headers)
-        if exams:
-            df = pd.DataFrame(exams)
-            st.dataframe(df, use_container_width=True)
+        # Verificar el rol para mostrar las funcionalidades correctas
+        if role in ["admin", "teacher"]:
+            # Para admins y teachers: crear y gestionar exámenes
+            st.subheader("Gestión de Exámenes")
             
-            # Acciones para exámenes específicos
-            exam_id = st.selectbox("Seleccionar Examen", df["id"])
-            if exam_id:
-                selected_exam = next((e for e in exams if e["id"] == exam_id), None)
-                if selected_exam:
-                    with st.expander("✏️ Editar Examen"):
-                        with st.form("edit_exam"):
-                            title = st.text_input("Título", selected_exam["title"])
-                            description = st.text_area("Descripción", selected_exam["description"])
-                            if st.form_submit_button("Actualizar"):
-                                data = {
-                                    "title": title,
-                                    "description": description
-                                }
-                                result = make_request("PUT", f"exams/{exam_id}", headers=headers, data=data)
+            # Crear nuevo examen
+            with st.expander("➕ Crear Nuevo Examen"):
+                with st.form("create_exam"):
+                    title = st.text_input("Título del Examen")
+                    description = st.text_area("Descripción")
+                    if st.form_submit_button("Crear Examen"):
+                        data = {
+                            "title": title,
+                            "description": description
+                        }
+                        result = make_request("POST", ENDPOINTS["exams"], headers=headers, data=data)
+                        if result:
+                            st.success("Examen creado exitosamente!")
+                            st.experimental_rerun()
+            
+            # Listar y gestionar exámenes
+            exams = make_request("GET", ENDPOINTS["exams"], headers=headers)
+            if exams:
+                df = pd.DataFrame(exams)
+                st.dataframe(df, use_container_width=True)
+                
+                # Acciones para exámenes específicos
+                exam_id = st.selectbox("Seleccionar Examen", df["id"])
+                if exam_id:
+                    selected_exam = next((e for e in exams if e["id"] == exam_id), None)
+                    if selected_exam:
+                        # Editar examen
+                        with st.expander("✏️ Editar Examen"):
+                            with st.form("edit_exam"):
+                                title = st.text_input("Título", selected_exam["title"])
+                                description = st.text_area("Descripción", selected_exam["description"])
+                                if st.form_submit_button("Actualizar"):
+                                    data = {
+                                        "title": title,
+                                        "description": description
+                                    }
+                                    result = make_request("PUT", f"{ENDPOINTS['exams']}/{exam_id}", headers=headers, data=data)
+                                    if result:
+                                        st.success("Examen actualizado exitosamente!")
+                                        st.experimental_rerun()
+                        
+                        # Gestión de preguntas y opciones
+                        with st.expander("📝 Gestión de Preguntas"):
+                            # Listar preguntas del examen
+                            questions = make_request("GET", f"{ENDPOINTS['exams']}/{exam_id}/questions", headers=headers)
+                            if questions:
+                                st.dataframe(questions, use_container_width=True)
+                                
+                                # Crear nueva pregunta
+                                with st.form("create_question"):
+                                    question_text = st.text_area("Texto de la Pregunta")
+                                    correct_option = st.selectbox("Opción Correcta", ["A", "B", "C", "D"])
+                                    if st.form_submit_button("Crear Pregunta"):
+                                        data = {
+                                            "text": question_text,
+                                            "correct_option": correct_option
+                                        }
+                                        result = make_request("POST", f"{ENDPOINTS['exams']}/{exam_id}/questions", headers=headers, data=data)
+                                        if result:
+                                            st.success("Pregunta creada exitosamente!")
+                                            st.experimental_rerun()
+                                
+                                # Editar pregunta
+                                question_id = st.selectbox("Seleccionar Pregunta", [q["id"] for q in questions])
+                                if question_id:
+                                    selected_question = next((q for q in questions if q["id"] == question_id), None)
+                                    if selected_question:
+                                        with st.form("edit_question"):
+                                            question_text = st.text_area("Texto de la Pregunta", selected_question["text"])
+                                            correct_option = st.selectbox("Opción Correcta", ["A", "B", "C", "D"], index=["A", "B", "C", "D"].index(selected_question["correct_option"]))
+                                            if st.form_submit_button("Actualizar Pregunta"):
+                                                data = {
+                                                    "text": question_text,
+                                                    "correct_option": correct_option
+                                                }
+                                                result = make_request("PUT", f"{ENDPOINTS['questions']}/{question_id}", headers=headers, data=data)
+                                                if result:
+                                                    st.success("Pregunta actualizada exitosamente!")
+                                                    st.experimental_rerun()
+                                
+                                # Eliminar pregunta
+                                if st.button("🗑️ Eliminar Pregunta"):
+                                    if st.confirm("¿Estás seguro de eliminar esta pregunta?"):
+                                        result = make_request("DELETE", f"{ENDPOINTS['questions']}/{question_id}", headers=headers)
+                                        if result:
+                                            st.success("Pregunta eliminada exitosamente!")
+                                            st.experimental_rerun()
+                        
+                        # Eliminar examen
+                        if st.button("🗑️ Eliminar Examen"):
+                            if st.confirm("¿Estás seguro de eliminar este examen?"):
+                                result = make_request("DELETE", f"{ENDPOINTS['exams']}/{exam_id}", headers=headers)
                                 if result:
-                                    st.success("Examen actualizado exitosamente!")
+                                    st.success("Examen eliminado exitosamente!")
                                     st.experimental_rerun()
-                    
-                    if st.button("🗑️ Eliminar Examen"):
-                        if st.confirm("¿Estás seguro de eliminar este examen?"):
-                            result = make_request("DELETE", f"exams/{exam_id}", headers=headers)
-                            if result:
-                                st.success("Examen eliminado exitosamente!")
-                                st.experimental_rerun()
-        else:
-            st.info("No hay exámenes disponibles")
+            else:
+                st.info("No hay exámenes disponibles")
+        
+        elif role == "student":
+            # Para estudiantes: realizar exámenes
+            st.subheader("Realizar Exámenes")
+            
+            # Listar exámenes disponibles
+            exams = make_request("GET", ENDPOINTS["exams"], headers=headers)
+            if exams:
+                df = pd.DataFrame(exams)
+                st.dataframe(df, use_container_width=True)
+                
+                # Seleccionar examen para realizar
+                exam_id = st.selectbox("Seleccionar Examen para Realizar", df["id"])
+                if exam_id:
+                    with st.form("take_exam"):
+                        # Obtener preguntas del examen
+                        questions = make_request("GET", f"{ENDPOINTS['exams']}/{exam_id}/questions", headers=headers)
+                        if questions:
+                            answers = {}
+                            for q in questions:
+                                st.subheader(f"Pregunta {q['id']}: {q['text']}")
+                                answers[q['id']] = st.selectbox(f"Respuesta para pregunta {q['id']}", ["A", "B", "C", "D"])
+                            
+                            if st.form_submit_button("Enviar Examen"):
+                                result = make_request("POST", f"{ENDPOINTS['exams']}/{exam_id}/submit", headers=headers, data={"answers": answers})
+                                if result:
+                                    st.success("Examen enviado exitosamente!")
+                                    st.info(f"Calificación: {result['score']} / {len(questions)}")
+                                    st.experimental_rerun()
+            else:
+                st.info("No hay exámenes disponibles para realizar")
     
     elif choice == "Resultados":
         st.header("📊 Resultados de Exámenes")
         
         # Filtrar resultados
         with st.expander("🔍 Filtrar Resultados"):
-            exam_filter = st.selectbox("Filtrar por Examen", ["Todos"] + [e["title"] for e in make_request("GET", "exams", headers=headers) or []])
-            user_filter = st.selectbox("Filtrar por Usuario", ["Todos"] + [u["username"] for u in make_request("GET", "users", headers=headers) or []])
+            exam_filter = st.selectbox("Filtrar por Examen", ["Todos"] + [e["title"] for e in make_request("GET", ENDPOINTS["exams"], headers=headers) or []])
+            user_filter = st.selectbox("Filtrar por Usuario", ["Todos"] + [u["username"] for u in make_request("GET", ENDPOINTS["users"], headers=headers) or []])
         
         # Listar resultados
         params = {}
@@ -182,7 +248,7 @@ def main():
         if user_filter != "Todos":
             params["user"] = user_filter
         
-        results = make_request("GET", "results", headers=headers, params=params)
+        results = make_request("GET", ENDPOINTS["results"], headers=headers, params=params)
         if results:
             df = pd.DataFrame(results)
             st.dataframe(df, use_container_width=True)
@@ -200,6 +266,11 @@ def main():
             st.info("No hay resultados disponibles")
     
     elif choice == "Usuarios":
+        # Solo los admins pueden ver esta sección
+        if st.session_state.role != "admin":
+            st.warning("Esta sección solo está disponible para administradores")
+            return
+            
         st.header("👥 Gestión de Usuarios")
         
         # Crear nuevo usuario
@@ -216,13 +287,13 @@ def main():
                         "email": email,
                         "role": role
                     }
-                    result = make_request("POST", "users", headers=headers, data=data)
+                    result = make_request("POST", ENDPOINTS["users"], headers=headers, data=data)
                     if result:
                         st.success("Usuario creado exitosamente!")
                         st.experimental_rerun()
         
         # Listar y gestionar usuarios
-        users = make_request("GET", "users", headers=headers)
+        users = make_request("GET", ENDPOINTS["users"], headers=headers)
         if users:
             df = pd.DataFrame(users)
             st.dataframe(df, use_container_width=True)
@@ -243,14 +314,14 @@ def main():
                                     "email": email,
                                     "role": role
                                 }
-                                result = make_request("PUT", f"users/{user_id}", headers=headers, data=data)
+                                result = make_request("PUT", f"{ENDPOINTS['users']}/{user_id}", headers=headers, data=data)
                                 if result:
                                     st.success("Usuario actualizado exitosamente!")
                                     st.experimental_rerun()
                     
                     if st.button("🗑️ Eliminar Usuario"):
                         if st.confirm("¿Estás seguro de eliminar este usuario?"):
-                            result = make_request("DELETE", f"users/{user_id}", headers=headers)
+                            result = make_request("DELETE", f"{ENDPOINTS['users']}/{user_id}", headers=headers)
                             if result:
                                 st.success("Usuario eliminado exitosamente!")
                                 st.experimental_rerun()
@@ -258,6 +329,11 @@ def main():
             st.info("No hay usuarios registrados")
     
     elif choice == "Configuración":
+        # Solo los admins pueden ver esta sección
+        if st.session_state.role != "admin":
+            st.warning("Esta sección solo está disponible para administradores")
+            return
+            
         st.header("🔧 Configuración del Sistema")
         
         # Configuración general
@@ -268,7 +344,7 @@ def main():
                 
         # Logs y auditoría
         with st.expander("📝 Logs del Sistema"):
-            logs = make_request("GET", "logs", headers=headers)
+            logs = make_request("GET", ENDPOINTS["logs"], headers=headers)
             if logs:
                 df = pd.DataFrame(logs)
                 st.dataframe(df, use_container_width=True)
