@@ -1,5 +1,5 @@
 # Rutas de la API
-API_BASE_URL = "https://evaluapp.onrender.com/api"
+API_BASE_URL = "https://evaluapp.onrender.com"
 
 # Endpoints
 ENDPOINTS = {
