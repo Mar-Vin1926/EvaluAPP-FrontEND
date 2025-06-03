@@ -1,5 +1,5 @@
 # Rutas de la API
-API_BASE_URL = "https://evaluapp.onrender.com"
+API_BASE_URL = "https://evaluapp.onrender.com/api"
 
 # Endpoints
 ENDPOINTS = {
@@ -7,8 +7,8 @@ ENDPOINTS = {
     "stats": "stats",
     "exams": "examenes",
     "examenes": "examenes",
-    "questions": "questions",
-    "options": "options",
+    "questions": "preguntas",
+    "options": "opciones",
     "results": "results",
     "users": "users",
     "logs": "logs"
@@ -30,7 +30,7 @@ def build_exam_url(exam_id):
     return f"{API_BASE_URL}/{ENDPOINTS['exams']}/{exam_id}"
 
 def build_question_url(question_id):
-    return f"{API_BASE_URL}/{ENDPOINTS['questions']}/{question_id}"
+    return f"{API_BASE_URL}/{ENDPOINTS['preguntas']}/{question_id}"
 
 def build_option_url(option_id):
-    return f"{API_BASE_URL}/{ENDPOINTS['options']}/{option_id}"
+    return f"{API_BASE_URL}/{ENDPOINTS['opciones']}/{option_id}"

@@ -1,10 +1,31 @@
 import streamlit as st
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
 import os
 from dotenv import load_dotenv
 from api_routes import ENDPOINTS, build_url
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class ExamenRequestDTO:
+    """DTO para crear un nuevo examen"""
+    titulo: str
+    descripcion: str
+    fechaInicio: date
+    fechaFin: date
+    usuarioId: int
+    
+    def to_dict(self) -> dict:
+        """Convierte el DTO a un diccionario con fechas en formato ISO"""
+        return {
+            "titulo": self.titulo,
+            "descripcion": self.descripcion,
+            "fechaInicio": self.fechaInicio.isoformat(),
+            "fechaFin": self.fechaFin.isoformat(),
+            "usuario_id": self.usuarioId
+        }
 
 # Configuración de la página
 st.set_page_config(
@@ -68,6 +89,103 @@ def make_request(method, endpoint, headers=None, data=None):
         st.error(f"Error en la petición: {e}")
         st.error(f"URL de la API: {url}")
         return None
+
+def crear_examen():
+    """
+    Función para crear un nuevo examen usando ExamenRequestDTO
+    """
+    if 'create_exam_form' not in st.session_state:
+        st.session_state.create_exam_form = True
+
+    if st.session_state.create_exam_form:
+        with st.form(key="form_create_exam", clear_on_submit=True):
+            st.header("📝 Crear Nuevo Examen")
+            
+            # Campos del formulario
+            titulo = st.text_input("Título del Examen", "", 
+                                 help="Por ejemplo: 'Examen de Matemáticas'")
+            descripcion = st.text_area("Descripción", "",
+                                     help="Descripción detallada del examen")
+            fecha_inicio = st.date_input("Fecha de Inicio", 
+                                      datetime.now().date(),
+                                      help="Fecha en que el examen estará disponible")
+            fecha_fin = st.date_input("Fecha de Fin", 
+                                   datetime.now().date() + pd.Timedelta(days=7),
+                                   help="Fecha límite para realizar el examen")
+            
+            if st.form_submit_button("Crear Examen"):
+                # Validación de campos
+                if not titulo:
+                    st.error("Por favor, ingresa un título para el examen")
+                    return
+                if fecha_inicio >= fecha_fin:
+                    st.error("La fecha de inicio debe ser anterior a la fecha de fin")
+                    return
+
+                # Crear DTO con los datos del formulario
+                try:
+                    # Obtener el ID del usuario actual según el rol
+                    usuario_id = 1  # Esto debería ser dinámico según el usuario actual
+                    
+                    examen_dto = ExamenRequestDTO(
+                        titulo=titulo,
+                        descripcion=descripcion,
+                        fechaInicio=fecha_inicio,
+                        fechaFin=fecha_fin,
+                        usuarioId=usuario_id
+                    )
+                except Exception as e:
+                    st.error(f"Error al crear el DTO: {str(e)}")
+                    return
+
+                try:
+                    # Hacer la petición POST usando el DTO
+                    response = make_request("POST", ENDPOINTS["examenes"], 
+                                        headers=get_headers(), 
+                                        data=examen_dto.to_dict())
+                    
+                    if response:
+                        st.success("Examen creado con éxito!")
+                        st.json(response)
+                        st.session_state.create_exam_form = False
+                    else:
+                        st.error("Error al crear el examen")
+
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                    if hasattr(e, 'response') and e.response:
+                        try:
+                            error_detail = e.response.json()
+                            st.json(error_detail)
+                        except:
+                            st.error(f"Detalles del error: {e.response.text}")
+
+                try:
+                    # Hacer la petición POST usando el DTO
+                    response = make_request("POST", ENDPOINTS["examenes"], 
+                                        headers=get_headers(), 
+                                        data=examen_dto.to_dict())
+                    
+                    if response:
+                        st.success("Examen creado con éxito!")
+                        st.json(response)
+                        st.session_state.create_exam_form = False
+                    else:
+                        st.error("Error al crear el examen")
+
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                    response = make_request("POST", ENDPOINTS["examenes"], headers=get_headers(), data=payload)
+                    
+                    if response:
+                        st.success("Examen creado con éxito!")
+                        st.json(response)
+                        st.session_state.create_exam_form = False  # Ocultar el formulario después de crear
+                    else:
+                        st.error("Error al crear el examen")
+
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
 
 def main():
     st.title("📊 EvaluApp - Panel de Control")
@@ -133,17 +251,25 @@ def main():
                         # Editar examen
                         with st.expander("✏️ Editar Examen"):
                             with st.form("edit_exam"):
-                                title = st.text_input("Título", selected_exam["title"])
-                                description = st.text_area("Descripción", selected_exam["description"])
+                                title = st.text_input("Título", selected_exam.get("title", selected_exam.get("titulo", "")))
+                                description = st.text_area("Descripción", selected_exam.get("description", selected_exam.get("descripcion", "")))
                                 if st.form_submit_button("Actualizar"):
                                     data = {
                                         "title": title,
                                         "description": description
                                     }
-                                    result = make_request("PUT", f"{ENDPOINTS['examenes']}/{exam_id}", headers=headers, data=data)
-                                    if result:
-                                        st.success("Examen actualizado exitosamente!")
-                                        st.rerun()
+                                    response = make_request("PUT", build_url(f"examenes/{exam_id}"), headers=headers, data=data)
+                                    if response:
+                                        st.success("Examen actualizado con éxito!")
+                                        st.json(response)
+                                    else:
+                                        st.error("Error al actualizar el examen")
+
+                        # Crear nuevo examen
+                        with st.expander("➕ Crear Nuevo Examen"):
+                            if st.button("Mostrar formulario de creación"):
+                                st.session_state.create_exam_form = True
+                            crear_examen()
                         
                         # Gestión de preguntas y opciones
                         with st.expander("📝 Gestión de Preguntas"):
