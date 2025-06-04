@@ -15,7 +15,7 @@ class ExamenRequestDTO:
     descripcion: str
     fechaInicio: date
     fechaFin: date
-    usuarioId: int
+    creadorId: int
     
     def to_dict(self) -> dict:
         """Convierte el DTO a un diccionario con fechas en formato ISO"""
@@ -24,7 +24,7 @@ class ExamenRequestDTO:
             "descripcion": self.descripcion,
             "fechaInicio": self.fechaInicio.isoformat(),
             "fechaFin": self.fechaFin.isoformat(),
-            "usuario_id": self.usuarioId
+            "creadorId": self.creadorId
         }
 
 # Configuración de la página
