@@ -5,9 +5,8 @@ API_BASE_URL = "https://evaluapp.onrender.com/api"
 ENDPOINTS = {
     "auth": "auth/login",
     "stats": "stats",
-    "exams": "examenes",
-    "examenes": "examenes",
-    "questions": "preguntas",
+    "examenes": "examenes", # Se deja una sola entrada para examenes
+    "preguntas": "preguntas", # Clave corregida de 'questions' a 'preguntas'
     "options": "opciones",
     "results": "results",
     "users": "users",
