@@ -123,8 +123,12 @@ def crear_examen():
                     fechaInicio=fecha_inicio,
                     fechaFin=fecha_fin,
                     creadorId=creador_id,
-                    preguntasIds=preguntas_seleccionadas_ids # Pasar los IDs seleccionados
+                    preguntasIds=preguntas_seleccionadas_ids  # Los IDs de las preguntas
                 )
+
+                # Mostrar los datos que se están enviando
+                st.write("Datos enviados al backend:")
+                st.json(examen.to_dict())
 
                 result = make_request(
                     "POST",
@@ -139,6 +143,8 @@ def crear_examen():
                     st.rerun()
                 else:
                     st.error("❌ Error al crear el examen")
+                    st.write("Respuesta del backend:")
+                    st.json(result)
 
             except Exception as e:
                 st.error(f"⚠️ Error inesperado: {str(e)}")
@@ -160,15 +166,70 @@ def main():
 
     elif choice == "Exámenes":
         st.header("📝 Gestión de Exámenes")
+
+        # Crear nuevo examen
         crear_examen()
 
         st.subheader("📄 Exámenes Registrados")
         examenes = make_request("GET", ENDPOINTS["examenes"], headers=headers)
+
         if examenes:
             df = pd.DataFrame(examenes)
-            st.dataframe(df, use_container_width=True)
+
+            # 🛑 Ocultar columnas innecesarias
+            columnas_ocultas = ['creadorId', 'creadorNombre', 'preguntasIds']
+            df_visible = df.drop(columns=[col for col in columnas_ocultas if col in df.columns], errors='ignore')
+
+            # ✅ Mostrar tabla limpia
+            st.dataframe(df_visible, use_container_width=True)
+
+            # 🗑️ Eliminar examen
+            st.subheader("🗑️ Eliminar examen")
+            exam_id_delete = st.selectbox("Selecciona un examen para eliminar", df["id"], key="delete_exam_select")
+            exam_titulo_delete = df[df["id"] == exam_id_delete]["titulo"].iloc[0]
+
+            with st.expander("⚠️ Confirmar eliminación de examen"):
+                st.warning(f"Estás a punto de eliminar el examen: **{exam_titulo_delete}** (ID: {exam_id_delete})")
+                confirmar = st.radio("¿Estás seguro?", ["No", "Sí"], index=0, horizontal=True)
+
+                if confirmar == "Sí":
+                    if st.button("✅ Confirmar eliminación"):
+                        response = requests.delete(build_url(f"{ENDPOINTS['examenes']}/{exam_id_delete}"), headers=headers)
+                        if response.status_code == 204:  # No Content (eliminación exitosa)
+                            st.success(f"✅ Examen ID {exam_id_delete} eliminado con éxito")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Error al eliminar el examen. Código: {response.status_code}")
+
+            # 🔍 Selección para ver preguntas
+            st.subheader("🔍 Ver preguntas de un examen")
+            exam_id = st.selectbox("Selecciona un examen", df["id"], key="view_exam_select")
+            exam_titulo = df[df["id"] == exam_id]["titulo"].iloc[0]
+            st.write(f"Título: {exam_titulo}")
+
+            if exam_id:
+                preguntas = make_request("GET", f"{ENDPOINTS['examenes']}/{exam_id}/preguntas", headers=headers)
+                if preguntas is not None:
+                    if isinstance(preguntas, list) and preguntas:  # Verifica que sea una lista y no esté vacía
+                        st.success(f"📋 Preguntas del examen ID {exam_id} {exam_titulo}")
+                        st.dataframe(pd.DataFrame(preguntas), use_container_width=True)
+                    else:
+                        st.warning(f"Este examen no tiene preguntas registradas. ID: {exam_id}, Título: {exam_titulo}")
+                        st.write(f"Endpoint usado: {ENDPOINTS['examenes']}/{exam_id}/preguntas")
+                        st.write(f"Headers: {headers}")
+                        st.write(f"Respuesta de la API: {preguntas}")
+                else:
+                    st.error("❌ Error al obtener las preguntas del examen")
+                    st.write(f"Endpoint usado: {ENDPOINTS['examenes']}/{exam_id}/preguntas")
+                    st.write(f"Headers: {headers}")
+
+
+
         else:
             st.info("No hay exámenes disponibles.")
+            st.markdown("---")
+
+
 
     elif choice == "Resultados":
         st.header("📊 Resultados de Exámenes")
