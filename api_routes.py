@@ -26,7 +26,7 @@ def build_url(endpoint):
 
 # Funciones auxiliares para construir URLs específicas
 def build_exam_url(exam_id):
-    return f"{API_BASE_URL}/{ENDPOINTS['exams']}/{exam_id}"
+    return f"{API_BASE_URL}/{ENDPOINTS['examenes']}/{exam_id}"
 
 def build_question_url(question_id):
     return f"{API_BASE_URL}/{ENDPOINTS['preguntas']}/{question_id}"
